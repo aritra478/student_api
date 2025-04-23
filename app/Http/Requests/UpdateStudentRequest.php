@@ -5,6 +5,8 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\Rule;
+
 class UpdateStudentRequest extends FormRequest
 {
     public function authorize(): bool
@@ -14,10 +16,23 @@ class UpdateStudentRequest extends FormRequest
 
     public function rules(): array
     {
+        $studentId = $this->route('student') instanceof \App\Models\Student
+            ? $this->route('student')->id
+            : $this->route('student');
+
         return [
             'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:students,email,' . $this->student->id,
-            'phone' => 'required|string|digits:10|unique:students,phone,' . $this->student->id,
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('students', 'email')->ignore($studentId),
+            ],
+            'phone' => [
+                'required',
+                'string',
+                'digits:10',
+                Rule::unique('students', 'phone')->ignore($studentId),
+            ],
         ];
     }
 
@@ -29,9 +44,11 @@ class UpdateStudentRequest extends FormRequest
             'email.email'    => 'The email must be a valid email address.',
             'email.unique'   => 'This email is already taken.',
             'phone.required' => 'The phone field is required.',
+            'phone.digits'   => 'The phone must be exactly 10 digits.',
             'phone.unique'   => 'This phone number is already taken.',
         ];
     }
+
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
@@ -41,4 +58,3 @@ class UpdateStudentRequest extends FormRequest
         ], 422));
     }
 }
-

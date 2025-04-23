@@ -8,6 +8,7 @@ use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Models\Student;
 use Exception;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -21,7 +22,6 @@ class StudentController extends Controller
                 'message' => 'Students retrieved successfully.',
                 'data' => $students
             ], 200);
-
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -41,7 +41,6 @@ class StudentController extends Controller
                 'message' => 'Student created successfully.',
                 'data' => $student
             ], 201);
-
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -51,15 +50,22 @@ class StudentController extends Controller
         }
     }
 
-    public function show(Student $student)
+    public function show($id)
     {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.'
+            ], 404);
+        }
         try {
             return response()->json([
                 'success' => true,
                 'message' => 'Student details retrieved successfully.',
                 'data' => $student
             ], 200);
-
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -69,18 +75,51 @@ class StudentController extends Controller
         }
     }
 
-    public function update(UpdateStudentRequest $request, Student $student)
+    public function update(Request $request, $id)
     {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.'
+            ], 404);
+        }
+
+        // Use current values if same to avoid unnecessary unique constraint errors
+        $validatedData = $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('students')->ignore($student->id),
+            ],
+            'phone' => [
+                'required',
+                'string',
+                'digits:10',
+                Rule::unique('students')->ignore($student->id),
+            ],
+        ], [
+            'name.required'  => 'The name field is required.',
+            'email.required' => 'The email field is required.',
+            'email.email'    => 'The email must be a valid email address.',
+            'email.unique'   => 'This email is already taken.',
+            'phone.required' => 'The phone field is required.',
+            'phone.digits'   => 'The phone must be exactly 10 digits.',
+            'phone.unique'   => 'This phone number is already taken.',
+        ]);
+
         try {
-            $student->update($request->validated());
+            // Even if nothing changes, update() will return true
+            $student->update($validatedData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Student updated successfully.',
                 'data' => $student
             ], 200);
-
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update student.',
@@ -88,9 +127,16 @@ class StudentController extends Controller
             ], 500);
         }
     }
-
-    public function destroy(Student $student)
+    public function destroy($id)
     {
+        $student = Student::find($id);
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found.'
+            ], 404);
+        }
         try {
             $student->delete();
 
@@ -98,7 +144,6 @@ class StudentController extends Controller
                 'success' => true,
                 'message' => 'Student deleted successfully.'
             ], 204);
-
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
